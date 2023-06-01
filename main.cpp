@@ -13,7 +13,7 @@ const int width  = 800;
 const int height = 800;
 const int depth  = 255;
 Vec3f center(0, 0, 0);
-Vec3f cameraPos(0, 0, 3);
+Vec3f cameraPos(1,1,1);
 Vec3f light_dir(0,0,1);
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color);
@@ -187,8 +187,8 @@ int main(int argc, char** argv) {
         for(int i = 0; i < 3; i++){
             Vec3f v = model->vert(face[i]);
             world_coords[i] = v;
-            pts[i] = Vec3f((v.x + 1.0f) * width / 2. , (v.y + 1.0f) * height / 2., v.z);
-            // pts[i] = m2v(vport * persp * modelView * v2m(v));
+            // pts[i] = Vec3f((v.x + 1.0f) * width / 2. , (v.y + 1.0f) * height / 2., v.z);
+            pts[i] = m2v(vport * persp * modelView * v2m(v));
         }
         Vec3f normal = ((world_coords[1] - world_coords[0]) ^ (world_coords[2] - world_coords[1])).normalize();
         float intensity = normal * light_dir;
