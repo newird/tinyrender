@@ -52,14 +52,14 @@ struct GourandShader : public Shader
 struct texShader : public Shader
 {
     Eigen::Matrix<float, 2, 3> varying_uv;
-    Matrix uniform_M;
-    Matrix uniform_MIT;
     Eigen::Matrix<float, 3, 3> model_pos;
+    Eigen::Matrix<float, 3 ,3> normals;
 
     virtual Vec4f vertex(int iface, int nthvert)
     {
         varying_uv.col(nthvert) = model->uv(iface, nthvert);
         model_pos.col(nthvert) = model->vert(iface, nthvert);
+        normals.col(nthvert) = model->normal(iface, nthvert);
         Vec4f local_pos;
         local_pos << model_pos(0, nthvert), model_pos(1, nthvert), model_pos(2, nthvert), 1.0f;
         return Viewport * Projection * Modelview * local_pos;
@@ -68,14 +68,35 @@ struct texShader : public Shader
     virtual bool fragment(Vec3f bary, TGAColor &color)
     {
         Vec2f uv = varying_uv * bary;
-        Vec3f normal = model->normal(uv).normalized();
+        Vec3f normal = normals * bary;
         Vec3f light = light_dir.normalized();
         Vec3f frag_pos = model_pos * bary;
         Vec3f eye_dir = (cameraPos - frag_pos).normalized();
         Vec3f half = (eye_dir + light).normalized();
+        //compute TBN
+        Eigen::Matrix2f delta_uv;
+        Vec2f uv0 = varying_uv.col(0), uv1 = varying_uv.col(1), uv2 = varying_uv.col(2);
+        delta_uv << uv1[0] - uv0[0], uv1[1] - uv0[1],
+                    uv2[0] - uv0[0], uv2[1] - uv0[1];
+        Eigen::Matrix<float, 2, 3> E;
+        Vec3f p0 = model_pos.col(0), p1 = model_pos.col(1), p2 = model_pos.col(2);
+        E << p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2],
+             p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2];
+        Eigen::Matrix<float, 2, 3> TB = delta_uv.inverse() * E;
+        Vec3f T = TB.row(0);
+        //orthogonalization
+        T = (T - T.dot(normal) * normal).normalized();
+        Vec3f B = normal.cross(T).normalized();
+        //TBN
+        Eigen::Matrix3f TBN;
+        TBN.col(0) = T;
+        TBN.col(1) = B;
+        TBN.col(2) = normal;
+        //compute N
+        Vec3f N = (TBN * model->normal(uv).normalized()).normalized();
 
-        float spec = std::pow(std::max(0.f, half.dot(normal)), model->specular(uv));
-        float diff = std::max(0.f, normal.dot(light));
+        float spec = std::pow(std::max(0.f, half.dot(N)), model->specular(uv));
+        float diff = std::max(0.f, N.dot(light));
         
         color = model->diffuse(uv);
         for(int i = 0; i < 3; i++) color[i] = std::min<float>(5 + color[i]*(diff + 0.6f * spec), 255);
@@ -103,8 +124,6 @@ int main(int argc, char** argv)
     perspective((cameraPos - center).norm());
 
     texShader shader;
-    shader.uniform_M = Projection * Modelview;
-    shader.uniform_MIT = (Projection * Modelview).inverse().transpose();
 
     for (int i=0; i<model->nfaces(); i++) 
     {

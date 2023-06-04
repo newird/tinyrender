@@ -75,14 +75,11 @@ Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
 }
 
 
-Vec3f perspectiveDivision(Vec4f v)
+inline Vec3f perspectiveDivision(Vec4f v)
 {
-    Vec3f ret;
-    ret << v[0] / v[3],
-           v[1] / v[3],
-           v[2] / v[3];
-
-    return ret;
+    return Vec3f(v[0] / v[3],
+                 v[1] / v[3],
+                 v[2] / v[3]);
 }
 
 void triangle(Vec4f *pts, Shader &shader, TGAImage &image, TGAImage &zbuffer)
@@ -156,5 +153,5 @@ Vec3f matrix4fProductVec3f(Matrix transform, Vec3f v)
     Vec4f v4;
     v4 << v[0], v[1], v[2], 1.0f;
     v4 = transform * v4;
-    return Vec3f(v4[0]/v4[3], v4[1]/v4[3], v4[2]/v4[3]);
+    return perspectiveDivision(v4);
 }
