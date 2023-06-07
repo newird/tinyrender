@@ -93,7 +93,7 @@ void triangle(Vec4f *pts, Shader &shader, TGAImage &image, TGAImage &zbuffer)
         max_y = max_y > pts[i][1] / pts[i][3] ? max_y : pts[i][1] / pts[i][3];
     }
     Vec3f p;
-    TGAColor color;
+    TGAColor color(0);
     for(int i = min_x; i < max_x; i++)
     {
         for(int j = min_y; j < max_y; j++)

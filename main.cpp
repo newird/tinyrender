@@ -12,48 +12,21 @@
 
 
 Model *model = NULL;
-const int width  = 800;
-const int height = 800;
+const int width  = 1200;
+const int height = 1200;
+TGAImage depthbuffer;
 
 Vec3f center(0, 0, 0);
 Vec3f cameraPos(0.4,0.4,1);
-Vec3f light_dir(1,1,2);
+Vec3f light_dir(1,1,0);
 Vec3f up(0,1,0);
-
-struct GourandShader : public Shader
-{
-    Vec3f varying_intensity;
-
-    GourandShader()
-    {
-        varying_intensity.setZero();
-    }
-
-    virtual Vec4f vertex(int iface, int nthvert)
-    {
-        Vec3f normal = model->normal(iface, nthvert);
-        Vec3f light = light_dir.normalized();
-        varying_intensity[nthvert] = std::max(0.0f, normal.dot(light));
-        Vec3f model_pos = model->vert(iface, nthvert);
-        Vec4f local_pos;
-        local_pos << model_pos[0], model_pos[1], model_pos[2], 1.0f;
-        return Viewport * Projection * Modelview * local_pos;
-    }
-
-    virtual bool fragment(Vec3f bary, TGAColor &color)
-    {
-        float average = bary.dot(varying_intensity);
-        color = TGAColor(255,255,255) * average;
-        return false;
-    }
-};
-
 
 struct texShader : public Shader
 {
     Eigen::Matrix<float, 2, 3> varying_uv;
     Eigen::Matrix<float, 3, 3> model_pos;
     Eigen::Matrix<float, 3 ,3> normals;
+    Matrix uniform_Mshadow;
 
     virtual Vec4f vertex(int iface, int nthvert)
     {
@@ -95,13 +68,31 @@ struct texShader : public Shader
         //compute N
         Vec3f N = (TBN * model->normal(uv).normalized()).normalized();
 
+        //shadow
+        Vec3f s_pos = matrix4fProductVec3f(uniform_Mshadow, frag_pos);
+        float shadow = 1.0f;
+        if(!(s_pos[0] < 0.f || s_pos[0] > width || s_pos[1] < 0.f || s_pos[1] > width))
+            shadow = .3+.7*(depthbuffer.get(s_pos[0], s_pos[1]).bgra[2] <=  s_pos[2]);
+
         float spec = std::pow(std::max(0.f, half.dot(N)), model->specular(uv));
         float diff = std::max(0.f, N.dot(light));
         
         color = model->diffuse(uv);
-        for(int i = 0; i < 3; i++) color[i] = std::min<float>(5 + color[i]*(diff + 0.6f * spec), 255);
+
+        for(int i = 0; i < 3; i++) color[i] = std::min<float>(5 + color[i]*shadow*(diff + 0.6f * spec), 255);
         return false;
     }
+};
+
+struct depthShader : public Shader
+{
+    virtual Vec4f vertex(int iface, int nthvert)
+    {
+        Vec4f local_pos = model->vert(iface, nthvert).homogeneous();
+        return Viewport * Projection * Modelview * local_pos;
+    }
+
+    virtual bool fragment(Vec3f bary, TGAColor& color){ return false;}
 };
 
 
@@ -112,19 +103,35 @@ int main(int argc, char** argv)
         model = new Model(argv[1]);
     } else 
     {
-        model = new Model("G:\\project\\c++\\tinyrender\\resource\\obj\\african_head\\african_head.obj");
+        // model = new Model("G:\\project\\c++\\tinyrender\\resource\\obj\\african_head\\african_head.obj");
+        model = new Model("G:\\project\\c++\\tinyrender\\resource\\obj\\diablo3_pose\\diablo3_pose.obj");
     }
-
+    TGAImage depthImage(width, height, TGAImage::RGB);
     TGAImage image(width, height, TGAImage::RGB);
     TGAImage zbuffer(width, height, TGAImage::RGB);
+    depthbuffer = TGAImage(width, height, TGAImage::RGB);
 
-    lookat(cameraPos, center, up);
+    depthShader dshader;
+    lookat(light_dir, center, up);
     viewport(width, height);
-    // viewport(width/8, height/8, width*3/4, height*3/4);
-    perspective((cameraPos - center).norm());
+    perspective((light_dir - center).norm());
+    for (int i=0; i<model->nfaces(); i++) 
+    {
+        Vec4f screen_coords[3];
+        for(int j = 0; j < 3; j++)
+        {
+            screen_coords[j] = dshader.vertex(i, j);
+        }
+        triangle(screen_coords, dshader, depthImage, depthbuffer);
+    }
+
+    Matrix Mshadow = Viewport * Projection * Modelview;
 
     texShader shader;
-
+    shader.uniform_Mshadow = Mshadow;
+    lookat(cameraPos, center, up);
+    viewport(width, height);
+    perspective((cameraPos - center).norm());
     for (int i=0; i<model->nfaces(); i++) 
     {
         Vec4f screen_coords[3];
@@ -137,6 +144,8 @@ int main(int argc, char** argv)
 
     image.  flip_vertically(); // to place the origin in the bottom left corner of the image
     zbuffer.flip_vertically();
+    depthbuffer.flip_vertically();
+    depthbuffer.write_tga_file("depthbuffer.tga");
     image.  write_tga_file("output.tga");
     zbuffer.write_tga_file("zbuffer.tga");
 
