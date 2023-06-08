@@ -25,4 +25,5 @@ void viewport(int x, int y, int w, int h);
 void triangle(Vec4f *pts, Shader &shader, TGAImage &image, TGAImage &zbuffer);
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color);
 Vec3f perspectiveDivision(Vec4f v);
+Vec2f perspectiveCorretInterpolateUV(const Vec3f& bary, const Eigen::Matrix<float, 2, 3>& varying_uv, float z1, float z2, float z3);
 Vec3f matrix4fProductVec3f(Matrix transform, Vec3f v);

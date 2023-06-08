@@ -148,6 +148,14 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     }
 }
 
+Vec2f perspectiveCorretInterpolateUV(const Vec3f& bary, const Eigen::Matrix<float, 2, 3>& varying_uv, float z1, float z2, float z3)
+{
+    float alpha = bary[0] / z1;
+    float beta = bary[1] / z2;
+    float gamma = bary[2] / z3;
+    return  (alpha * varying_uv.col(0) + beta * varying_uv.col(1) + gamma * varying_uv.col(2)) / (alpha + beta + gamma);
+}
+
 Vec3f matrix4fProductVec3f(Matrix transform, Vec3f v)
 {
     Vec4f v4;
