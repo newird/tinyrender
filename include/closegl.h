@@ -19,6 +19,7 @@ extern Matrix Viewport;
 
 void lookat(Vec3f camera, Vec3f center, Vec3f up);
 void perspective(float distance);
+void orthogonal();
 void viewport(int width, int height);
 void viewport(int x, int y, int w, int h);
 

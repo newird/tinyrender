@@ -59,6 +59,12 @@ void perspective(float distance)
 }
 
 
+void orthogonal()
+{
+    Projection = Matrix::Identity();
+}
+
+
 
 Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
     Vec3f s[2];
@@ -103,6 +109,14 @@ void triangle(Vec4f *pts, Shader &shader, TGAImage &image, TGAImage &zbuffer)
             Vec3f bary = barycentric(perspectiveDivision(pts[0]), perspectiveDivision(pts[1]), perspectiveDivision(pts[2]), p);
             if(bary[0] >= 0 && bary[1] >= 0 && bary[2] >= 0)
             {
+                // perspective correct interpolate
+                float alpha = bary[0] / pts[0][3];
+                float beta = bary[1] / pts[1][3];
+                float gamma = bary[2] / pts[2][3];
+                bary[0] = alpha / (alpha + beta + gamma);
+                bary[1] = beta / (alpha + beta + gamma);
+                bary[2] = gamma / (alpha + beta + gamma);
+                //
                 p[2] = bary[0] * pts[0][2] + bary[1] * pts[1][2] + bary[2] * pts[2][2];
                 float w = bary[0] * pts[0][3] + bary[1] * pts[1][3] + bary[2] * pts[2][3];
                 float frag_depth = p[2] / w;
