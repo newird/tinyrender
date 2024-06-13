@@ -1,0 +1,3 @@
+[submodule "third_part/eigen"]
+	path = third_part/eigen
+	url = https://github.com/PX4/eigen.git
